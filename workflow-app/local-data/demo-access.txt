@@ -1,5 +1,0 @@
-Yalnızca yerel deneme hesapları
-Yönetici: yonetici@eksioglutria.com
-Çalışan: calisan@eksioglutria.com
-İki hesabın başlangıç şifresi: d70442b3b119dec733f1
-Şifreyi uygulamada değiştirirsen bu kayıt güncellenmez.

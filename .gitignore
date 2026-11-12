@@ -1,0 +1,6 @@
+# Gizli ayarlar ve yerel veriler: asla commit edilmez.
+# (Google client secret, Gemini API anahtarı, secret_key, veritabanı parolası bu dosyalarda bulunur.)
+workflow-app/config.php
+workflow-app/config.local.php
+workflow-app/local-data/
+workflow-app/storage/

@@ -67,6 +67,8 @@ Entegrasyon yapılandırılana kadar E-posta ve Drive ekranları "yapılandırı
 5. **Gemini:** Google AI Studio veya Google Cloud (Vertex/Generative Language API) üzerinden faturalandırması açık bir projede API anahtarı oluşturup `gemini.api_key` alanına yazın. Ücretsiz katmandaki anahtarlarda Google gönderilen verileri ürün geliştirme için kullanabilir. Kurumsal veriler için **faturalı (ücretli) katman** kullanın. `model` alanı varsayılan olarak `gemini-2.5-flash`'tır.
 6. Her kullanıcı **Ayarlar → Google Workspace → Google ile bağlan** ile kendi hesabına bir kez izin verir. İstenen izinler: Gmail okuma ve gönderme, Drive okuma, Takvim etkinliği ekleme.
 
+`config.php`, `config.local.php`, `local-data/` ve `storage/` `.gitignore` ile git dışında tutulur; gizli anahtarları yalnızca bu dosyalara yazın. Bir secret yanlışlıkla paylaşılırsa Google Cloud → Clients ekranından yeni secret oluşturup eskisini devre dışı bırakın.
+
 Bağlanan Google hesabının e-posta adresi uygulamadaki kullanıcı e-postasıyla **aynı** olmalıdır; aksi halde bağlantı reddedilir. Yerel denemede bu ayarlar `workflow-app/config.local.php` dosyasına yazılabilir. Başlatıcı `secret_key`, `google` ve `gemini` alanlarını yeniden başlatmalarda korur.
 
 ## Güvenlik

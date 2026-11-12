@@ -32,7 +32,7 @@ Gmail bağlantısı ve otomatik e-posta bu sürümde yoktur. Yerel davet bağlan
 
 ## Dosyalar ve ileride yayınlama
 
-Yerel veriler ve yüklenen belgeler `workflow-app/local-data/` altında tutulur. Yerel ayarlar `workflow-app/config.local.php` dosyasında oluşur. `workflow-app/config.php` üretim ayarlarına dokunulmaz. Yerel çalışma yalnızca komut satırıyla başlatılan PHP geliştirme sunucusunda etkinleşir.
+Yerel veriler ve yüklenen belgeler `workflow-app/local-data/` altında tutulur. Yerel ayarlar `workflow-app/config.local.php` dosyasında oluşur. Bu iki konum ve üretimdeki `config.php` `.gitignore` ile git dışında tutulur; Google client secret, Gemini API anahtarı ve `secret_key` gibi bilgileri yalnızca bu dosyalara yazın, sohbet veya commit ile paylaşmayın. `workflow-app/config.php` üretim ayarlarına dokunulmaz. Yerel çalışma yalnızca komut satırıyla başlatılan PHP geliştirme sunucusunda etkinleşir.
 
 Yerel denemeyi sıfırlamak isterseniz sunucuyu durdurup `local-data` klasörünü yedekleyerek başka bir yere taşıyın; sonraki açılış yeni örnek veritabanı oluşturur. Bu işlem eski deneme verilerini yeni oturuma taşımaz.
 
