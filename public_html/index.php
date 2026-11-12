@@ -3,8 +3,12 @@ declare(strict_types=1);
 ini_set('display_errors','0');umask(0077);
 header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');header('X-Frame-Options: DENY');header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
-$bootstrap=dirname(__DIR__).'/workflow-app/bootstrap.php';
-if(!is_file($bootstrap)){http_response_code(503);header('Content-Type: text/plain; charset=utf-8');echo 'Uygulama dosyaları henüz kurulmadı.';exit;}
+// Özel uygulama klasörü web kökünün dışında aranır:
+//  - Ayrı alan adı:  /domains/workdesk.../public_html  →  /domains/workdesk.../workflow-app
+//  - Alt alan adı:   /domains/eksioglutria.com/public_html/workdesk  →  /domains/eksioglutria.com/workflow-app
+$bootstrap='';
+foreach([dirname(__DIR__),dirname(__DIR__,2)] as $base)if(is_file($base.'/workflow-app/bootstrap.php')){$bootstrap=$base.'/workflow-app/bootstrap.php';break;}
+if($bootstrap===''){http_response_code(503);header('Content-Type: text/plain; charset=utf-8');echo 'Uygulama dosyaları henüz kurulmadı.';exit;}
 require $bootstrap;
 $method=$_SERVER['REQUEST_METHOD']??'GET';$path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';
 $https=(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off')||(int)($_SERVER['SERVER_PORT']??0)===443;

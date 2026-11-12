@@ -17,7 +17,7 @@ ZIP'i önce kendi bilgisayarınızda açın. İki ayrı klasörü doğru yere y�
 | `tools/setup-key.html` | Yalnızca yerel bilgisayarda açılır; sunucuya yüklenmez. |
 | `README.md`, `VALIDATION.md` | Kurulum ve test notları; web köküne yüklenmez. |
 
-`workflow-app`, `public_html` ile aynı seviyede olmalıdır; **içine yerleştirmeyin**. Veritabanı parolası, kurulum ayarları ve yüklenen belgeler özel klasörde kalır. Ana `eksioglutria.com` sitesinin dosyalarını değiştirmeyin. Paketin tamamını `public_html` içine açmayın.
+`workflow-app`, `public_html` ile aynı seviyede olmalıdır; **içine yerleştirmeyin**. Uygulama alt alan adı olarak (ör. `/domains/eksioglutria.com/public_html/workdesk`) kurulursa `workflow-app` klasörü ana sitenin `public_html` klasörünün yanına (`/domains/eksioglutria.com/workflow-app`) konur; `index.php` iki konumu da arar. Veritabanı parolası, kurulum ayarları ve yüklenen belgeler özel klasörde kalır. Ana `eksioglutria.com` sitesinin dosyalarını değiştirmeyin. Paketin tamamını `public_html` içine açmayın.
 
 ## DirectAdmin kurulumu
 
