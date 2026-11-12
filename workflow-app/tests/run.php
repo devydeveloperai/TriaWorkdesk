@@ -203,7 +203,9 @@ try{
  $req=json_decode(end($calls)[3],true);
  expect($g['reply']==='Bu hafta 2 teslim var.'&&$g['proposal']===null&&in_array('x-goog-api-key: gkey',end($calls)[2],true)&&count($req['contents'])===3&&str_contains($req['systemInstruction']['parts'][0]['text'],'Tria Kordonboyu')&&!str_contains($req['systemInstruction']['parts'][0]['text'],'Muhasebe Projesi'),'gemini request scoped to visible data');
  $busy=true;App::$transport=(function($inner)use(&$busy){return function($m,$url,$h,$b)use($inner,&$busy){if($busy&&str_contains($url,'gemini-2.5-flash:'))return [503,json_encode(['error'=>['message'=>'high demand']])];return $inner($m,$url,$h,$b);};})(App::$transport);
- $g=status($ws->handle('POST','/api/gemini',['message'=>'Merhaba'],$staff),200,'gemini fallback on 503');expect(str_contains(end($calls)[1],'gemini-flash-lite-latest:generateContent'),'fallback model used');
+ $g=status($ws->handle('POST','/api/gemini',['message'=>'Merhaba'],$staff),200,'gemini fallback on 503');
+ $busy=false;App::$transport=(function($inner){return function($m,$url,$h,$b)use($inner){if(str_contains($url,'gemini-2.5-flash:'))throw new Tria\Problem('timeout',502);return $inner($m,$url,$h,$b);};})(App::$transport);
+ status($ws->handle('POST','/api/gemini',['message'=>'Merhaba'],$staff),200,'gemini fallback on timeout');expect(str_contains(end($calls)[1],'gemini-flash-lite-latest:'),'fallback after timeout');expect(str_contains(end($calls)[1],'gemini-flash-lite-latest:generateContent'),'fallback model used');
  $geminiReply=['candidates'=>[['content'=>['parts'=>[['functionCall'=>['name'=>'create_task','args'=>['title'=>'Fatura kontrolü','project'=>'Tria Kordonboyu','due'=>'2026-12-05','priority'=>'Yüksek','category'=>'Finans & Muhasebe']]]]]]]];
  $g=status($ws->handle('POST','/api/gemini',['message'=>'Fatura kontrolü görevi aç'],$staff),200,'gemini proposal');
  expect($g['proposal']['project_id']===$pid&&$g['proposal']['category']==='Finans & Muhasebe'&&$g['proposal']['due']==='2026-12-05'&&!isset($g['proposal']['assignee']),'proposal mapped');

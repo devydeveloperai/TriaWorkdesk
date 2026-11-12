@@ -2,6 +2,9 @@
 # (Google client secret, Gemini API anahtarı, secret_key, veritabanı parolası bu dosyalarda bulunur.)
 workflow-app/config.php
 workflow-app/config.local.php
+workflow-app/config.lan.php
+workflow-app/lan-data/
+Paylasilacak/
 workflow-app/local-data/
 workflow-app/storage/*
 !workflow-app/storage/.htaccess

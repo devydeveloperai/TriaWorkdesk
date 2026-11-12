@@ -130,18 +130,18 @@ trait Workspace {
   * ================================================================== */
 
  /** @return array{0:int,1:string} [HTTP durum kodu, yanıt gövdesi] */
- private function http(string $method,string $url,array $headers=[],?string $body=null):array{
+ private function http(string $method,string $url,array $headers=[],?string $body=null,int $timeout=40):array{
   if(self::$transport)return (self::$transport)($method,$url,$headers,$body);
   if(function_exists('curl_init')){
    $c=curl_init($url);
-   curl_setopt_array($c,[CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>$headers,CURLOPT_TIMEOUT=>40,CURLOPT_CONNECTTIMEOUT=>10,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_MAXREDIRS=>3,CURLOPT_MAXFILESIZE=>15000000]);
+   curl_setopt_array($c,[CURLOPT_CUSTOMREQUEST=>$method,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>$headers,CURLOPT_TIMEOUT=>$timeout,CURLOPT_CONNECTTIMEOUT=>10,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_MAXREDIRS=>3,CURLOPT_MAXFILESIZE=>15000000]);
    if($body!==null)curl_setopt($c,CURLOPT_POSTFIELDS,$body);
    $out=curl_exec($c);$status=(int)curl_getinfo($c,CURLINFO_RESPONSE_CODE);
    if(!is_string($out))throw new Problem('Google hizmetine ulaşılamadı. Sunucunun internet erişimini kontrol edin.',502);
    return [$status,$out];
   }
   // curl yoksa: allow_url_fopen ile PHP akışları.
-  $ctx=stream_context_create(['http'=>['method'=>$method,'header'=>implode("\r\n",$headers),'content'=>$body??'','ignore_errors'=>true,'timeout'=>40,'follow_location'=>1,'max_redirects'=>3]]);
+  $ctx=stream_context_create(['http'=>['method'=>$method,'header'=>implode("\r\n",$headers),'content'=>$body??'','ignore_errors'=>true,'timeout'=>$timeout,'follow_location'=>1,'max_redirects'=>3]]);
   $out=@file_get_contents($url,false,$ctx);
   if($out===false)throw new Problem('Google hizmetine ulaşılamadı. Sunucunun internet erişimini kontrol edin.',502);
   $lines=function_exists('http_get_last_response_headers')?(http_get_last_response_headers()??[]):($http_response_header??[]);
@@ -150,13 +150,13 @@ trait Workspace {
  }
 
  /** JSON veya form gövdeli istek; yanıtı diziye çevirir. */
- private function httpJson(string $method,string $url,array $headers=[],mixed $payload=null,bool $form=false):array{
+ private function httpJson(string $method,string $url,array $headers=[],mixed $payload=null,bool $form=false,int $timeout=40):array{
   $body=null;
   if($payload!==null){
    if($form){$body=http_build_query($payload);$headers[]='Content-Type: application/x-www-form-urlencoded';}
    else{$body=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);$headers[]='Content-Type: application/json';}
   }
-  [$status,$raw]=$this->http($method,$url,$headers,$body);
+  [$status,$raw]=$this->http($method,$url,$headers,$body,$timeout);
   $data=json_decode($raw,true);
   return [$status,is_array($data)?$data:[]];
  }
@@ -518,8 +518,12 @@ trait Workspace {
    $payload['tools']=[['functionDeclarations'=>[['name'=>'create_task','description'=>'Kullanıcının onayına sunulacak yeni bir görev taslağı hazırlar.','parameters'=>['type'=>'object','properties'=>$props,'required'=>['title','project','due']]]]]];
   }
   // Ana model yoğunsa (503) veya kaldırılmışsa (404) yedek modelle bir kez daha denenir.
-  foreach(array_unique([$cfg['model'],$cfg['fallback']]) as $model){
-   [$st,$d]=$this->httpJson('POST',self::GEMINI.$model.':generateContent',['x-goog-api-key: '.$cfg['api_key']],$payload);
+  // Ana model 20 sn içinde yanıt vermezse (zaman aşımı) yine yedeğe geçilir; kullanıcı uzun süre beklemez.
+  $models=array_values(array_unique([$cfg['model'],$cfg['fallback']]));$st=0;$d=[];
+  foreach($models as $i=>$model){
+   $last=$i===count($models)-1;
+   try{[$st,$d]=$this->httpJson('POST',self::GEMINI.$model.':generateContent',['x-goog-api-key: '.$cfg['api_key']],$payload,false,$last?40:20);}
+   catch(Problem $e){if($last)throw new Problem('Gemini şu anda yanıt veremiyor. Biraz sonra tekrar deneyin.',504);$st=504;continue;}
    if(!in_array($st,[404,500,503],true))break;
   }
   if($st===429)throw new Problem('Gemini kullanım sınırına ulaşıldı. Biraz sonra tekrar deneyin.',429);

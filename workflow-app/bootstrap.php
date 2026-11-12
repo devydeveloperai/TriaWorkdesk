@@ -3,8 +3,11 @@ declare(strict_types=1);
 require_once __DIR__.'/app.php';
 function tria_config():array{
  if(PHP_VERSION_ID<80200)throw new RuntimeException('PHP 8.2 gerekiyor.');
- $local=PHP_SAPI==='cli-server'&&getenv('TRIA_LOCAL_MODE')==='1';
- $configFile=__DIR__.($local?'/config.local.php':'/config.php');
+ // Yalnızca PHP geliştirme sunucusunda (php -S) başlatıcıların seçtiği yerel ayar dosyası kullanılır:
+ //   TRIA_LOCAL_MODE=1   → config.local.php (demo, yalnızca bu bilgisayar)
+ //   TRIA_LOCAL_MODE=lan → config.lan.php   (ofis ağı, aynı Wi-Fi'deki herkes)
+ $mode=PHP_SAPI==='cli-server'?(string)getenv('TRIA_LOCAL_MODE'):'';
+ $configFile=__DIR__.match($mode){'1'=>'/config.local.php','lan'=>'/config.lan.php',default=>'/config.php'};
  if(!is_file($configFile))throw new RuntimeException('Yapılandırma eksik.');
  $c=require $configFile;
  if(!is_array($c)||!preg_match('~^https?://[a-zA-Z0-9.-]+(?::[0-9]+)?$~D',$c['origin']??''))throw new RuntimeException('Uygulama adresi geçersiz.');

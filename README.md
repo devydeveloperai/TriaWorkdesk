@@ -4,7 +4,7 @@ Hedef adres: **https://workflow.eksioglutria.com**
 
 Sunucu tarafı Python'dan PHP 8.2+ ve PDO/MySQL'e taşındı. Çalışan/yönetici girişi, tek kullanımlık davetler, proje erişimleri, görevler, dosyalar, takvim ve raporlar aynı arayüzü kullanır. Composer, Node.js, Python servisi, VPS veya systemd gerekmez.
 
-Önce yerel deneme yapılacaktır. `LOCAL-README.md` ile başlayın; `start-local.bat` (Windows) veya `bash start-local.sh` (Ubuntu) yerel SQLite denemesini açar. Hosting kurulumu tamamlanmış değildir; yayınlama sonraki ayrı aşamadır.
+**Ofis ağında (aynı Wi-Fi) çalıştırmak için `OFIS-KURULUMU.md` dosyasına bakın** (`start-lan.bat` / `start-lan.sh`). Önce yerel deneme yapılacaktır. `LOCAL-README.md` ile başlayın; `start-local.bat` (Windows) veya `bash start-local.sh` (Ubuntu) yerel SQLite denemesini açar. Hosting kurulumu tamamlanmış değildir; yayınlama sonraki ayrı aşamadır.
 
 ## Paket yerleşimi
 
