@@ -66,3 +66,10 @@ Google ve Gemini yanıtları testlerde taklit edildi (`App::$transport`). Yerel 
 - 390 px mobil görünüm.
 
 **Gerçek Google hesabı, Google Cloud OAuth istemcisi ve Gemini API anahtarıyla canlı doğrulama yapılmadı.** Bu bilgiler sağlandıktan sonra README'deki kurulum adımlarıyla denenmelidir.
+
+## MySQL/MariaDB doğrulaması — 12 Kasım 2026
+
+Servis testleri artık isteğe bağlı olarak gerçek MySQL/MariaDB üzerinde çalışır:
+`TRIA_TEST_MYSQL="localhost;bos_test_veritabani;kullanici;parola" php workflow-app/tests/run.php` (veritabanındaki `tria_` tabloları silinir; yalnızca boş test veritabanı kullanın).
+
+MariaDB 10.11 üzerinde **178 kontrolün tamamı geçti** (SQLite ile aynı). Üretim paketi boş bir MariaDB veritabanında sıfırdan kuruldu: `/setup` kurulumu, tekrar kurulumun reddi, giriş, proje, görev ("Finans & Muhasebe"), yetkili rol, Google bağlantı adresi ve Gemini yapılandırması doğrulandı; 12 tablonun tamamı InnoDB olarak oluştu. Apache 2.4 + mod_rewrite ile `.htaccess` yönlendirmeleri ayrıca denendi. Canlı hosting'deki MySQL sürümü ve LiteSpeed ile ayrıca doğrulanmalıdır.

@@ -5,6 +5,14 @@ use Tria\App;
 use Tria\Response;
 $dir=sys_get_temp_dir().'/tria-test-'.bin2hex(random_bytes(8));mkdir($dir,0700);mkdir($dir.'/uploads',0700);
 $config=['origin'=>'https://workflow.eksioglutria.com','setup_token_hash'=>Tria\digest(str_repeat('a',64)),'data_dir'=>$dir,'db'=>['driver'=>'sqlite','path'=>$dir.'/test.sqlite']];
+// İsteğe bağlı MySQL/MariaDB testi: TRIA_TEST_MYSQL="host;veritabanı;kullanıcı;parola" (veritabanı BOŞ bir test veritabanı olmalı; tablolar silinir).
+if(($m=getenv('TRIA_TEST_MYSQL'))!==false&&$m!==''){
+ [$h,$n,$us,$pw]=array_pad(explode(';',$m,4),4,'');
+ $config['db']=['driver'=>'mysql','host'=>$h,'port'=>3306,'name'=>$n,'user'=>$us,'password'=>$pw];
+ $pdo=new PDO("mysql:host=$h;dbname=$n;charset=utf8mb4",$us,$pw,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+ $pdo->exec('SET FOREIGN_KEY_CHECKS=0');foreach($pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) as $t)if(str_starts_with($t,'tria_'))$pdo->exec("DROP TABLE `$t`");$pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+ echo "Veritabanı: MySQL/MariaDB ($h/$n)\n";
+}
 $app=new App($config);$checks=0;
 function expect(bool $ok,string $message):void{global $checks;if(!$ok)throw new RuntimeException($message);$checks++;}
 function status(Response $r,int $s,string $m):array{expect($r->status===$s,$m.' got '.$r->status.' '.json_encode($r->data));return is_array($r->data)?$r->data:[];}
