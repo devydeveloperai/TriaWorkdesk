@@ -28,7 +28,9 @@ function validPassword(string $s):void{if(strlen($s)<12||strlen($s)>1024)throw n
 // mbstring her hostingde etkin olmayabilir; yoksa bayt tabanlı küçültmeye düşülür.
 function lower(string $s):string{return function_exists('mb_strtolower')?mb_strtolower($s,'UTF-8'):strtolower($s);}
 function publicUser(array $u):array{return array_intersect_key($u,array_flip(['id','name','email','role']));}
+require_once __DIR__.'/workspace.php';
 final class App {
+ use Workspace; // Google Workspace (Gmail, Drive, Takvim) ve Gemini entegrasyonu
  public const STATUSES=['Planlandı','Devam ediyor','Beklemede','Tamamlandı'];
  // Görev kategorileri: "Finans & Muhasebe", menüdeki sırayla uyumlu olarak "Kentsel Dönüşüm"ün hemen ardından gelir.
  public const CATEGORIES=['Genel','Kentsel Dönüşüm','Finans & Muhasebe','Belediye & Ruhsat','Şantiye','Satış & CRM'];
@@ -36,6 +38,19 @@ final class App {
  // Yerleşik roller silinemez. Yetki kontrolleri yalnızca 'admin' rolünü ayrıcalıklı sayar;
  // tria_meta içinde tanımlanan özel roller çalışan düzeyinde yetkiye sahip etiketlerdir.
  public const BUILTIN_ROLES=['admin'=>'Yönetici','employee'=>'Çalışan'];
+ // Rollere atanabilen yetkiler. Yönetici hepsine sahiptir; Çalışan rolü EMPLOYEE_PERMISSIONS ile sabittir.
+ // Özel rollerin yetkileri Ekip → Rolleri yönet ekranından seçilir.
+ public const PERMISSIONS=[
+  'projects.all'=>'Tüm projeleri ve görevleri görüntüleme',
+  'projects.manage'=>'Proje oluşturma ve proje ekibi yönetimi',
+  'tasks.assign'=>'Başkalarına görev atama ve durumlarını güncelleme',
+  'tasks.delete'=>'Görev silme',
+  'mail.use'=>'Gmail (E-posta ekranı)',
+  'drive.use'=>'Google Drive ve Google Takvim',
+  'gemini.use'=>'Gemini asistanı',
+ ];
+ public const EMPLOYEE_PERMISSIONS=['mail.use','drive.use','gemini.use'];
+ private array $permCache=[];
  public readonly \PDO $db;
  public readonly string $driver;
  public function __construct(public readonly array $config){
@@ -71,7 +86,7 @@ final class App {
  private function admin(array $u):void{if($u['role']!=='admin')throw new Problem('Yönetici yetkisi gerekiyor.',403);}
  private function project(array $u,string $id):array{
   $p=$this->one('SELECT * FROM tria_projects WHERE id=?',[$id]);if(!$p)throw new Problem('Proje bulunamadı.',404);
-  if($u['role']!=='admin'&&!$this->one('SELECT 1 FROM tria_members WHERE project_id=? AND user_id=?',[$id,$u['id']]))throw new Problem('Bu projeye erişim yetkiniz yok.',403);return $p;
+  if(!$this->can($u,'projects.all')&&!$this->one('SELECT 1 FROM tria_members WHERE project_id=? AND user_id=?',[$id,$u['id']]))throw new Problem('Bu projeye erişim yetkiniz yok.',403);return $p;
  }
 
  /* ------------------------------------------------------------------
@@ -84,11 +99,42 @@ final class App {
  public function roles():array{
   $list=[];
   // 1) Yerleşik roller her zaman listenin başında yer alır.
-  foreach(self::BUILTIN_ROLES as $key=>$label)$list[]=['key'=>$key,'label'=>$label,'builtin'=>true];
-  // 2) tria_meta içindeki özel roller eklenir.
-  foreach($this->customRoles() as $r)$list[]=['key'=>$r['key'],'label'=>$r['label'],'builtin'=>false];
+  $list[]=['key'=>'admin','label'=>self::BUILTIN_ROLES['admin'],'builtin'=>true,'permissions'=>array_keys(self::PERMISSIONS)];
+  $list[]=['key'=>'employee','label'=>self::BUILTIN_ROLES['employee'],'builtin'=>true,'permissions'=>self::EMPLOYEE_PERMISSIONS];
+  // 2) tria_meta içindeki özel roller eklenir. Yetki alanı olmayan eski kayıtlar
+  //    (önceki sürümde oluşturulanlar) çalışan yetkileriyle devam eder.
+  foreach($this->customRoles() as $r)$list[]=['key'=>$r['key'],'label'=>$r['label'],'builtin'=>false,'permissions'=>$this->cleanPermissions($r['permissions']??self::EMPLOYEE_PERMISSIONS)];
   return $list;
  }
+
+ /** Bilinmeyen yetki anahtarlarını atar, tekrarları kaldırır. */
+ private function cleanPermissions(mixed $list):array{
+  if(!is_array($list))return [];
+  return array_values(array_intersect(array_keys(self::PERMISSIONS),array_filter($list,'is_string')));
+ }
+
+ /** İstekten gelen yetki listesini doğrular (bilinmeyen anahtar varsa 400). */
+ private function permissionInput(mixed $list):array{
+  if(!is_array($list)||!array_is_list($list)||count($list)>count(self::PERMISSIONS))throw new Problem('Yetki listesi geçersiz.');
+  foreach($list as $p)if(!is_string($p)||!isset(self::PERMISSIONS[$p]))throw new Problem('Yetki listesi geçersiz.');
+  return $this->cleanPermissions($list);
+ }
+
+ /** Kullanıcının rolüne göre sahip olduğu yetkiler (istek boyunca önbelleğe alınır). */
+ public function permissions(array $u):array{
+  $role=(string)($u['role']??'');
+  if(!isset($this->permCache[$role])){
+   $found=array_values(array_filter($this->roles(),fn($r)=>$r['key']===$role));
+   $this->permCache[$role]=$found?$found[0]['permissions']:[]; // Tanımsız rol hiçbir ek yetki taşımaz.
+  }
+  return $this->permCache[$role];
+ }
+
+ /** Yetki kontrolü: yönetici her zaman yetkilidir. */
+ public function can(array $u,string $perm):bool{return ($u['role']??'')==='admin'||in_array($perm,$this->permissions($u),true);}
+ private function requirePermission(array $u,string $perm):void{if(!$this->can($u,$perm))throw new Problem('Bu işlem için yetkiniz yok.',403);}
+ /** İstemciye dönen kullanıcı nesnesi: temel alanlar + yetkiler. */
+ private function me(array $u):array{return publicUser($u)+['permissions'=>$this->permissions($u)];}
 
  /** Yalnızca tria_meta içindeki özel rolleri okur; bozuk kayıtlar atlanır. */
  private function customRoles():array{
@@ -144,6 +190,8 @@ final class App {
    if($path==='/api/invite/accept'&&$method==='POST')return $this->tx(fn()=>$this->accept($body));
    $u=$this->session($ctx);
    if($method!=='GET'&&(!is_string($ctx['csrf']??null)||!hash_equals($u['csrf'],$ctx['csrf'])))throw new Problem('Güvenlik doğrulaması başarısız. Sayfayı yenileyin.',403);
+   // Google Workspace ve Gemini uçları dış servise bağlandığı için transaction dışında çalışır.
+   if(str_starts_with($path,'/api/google/')||$path==='/api/gemini')return $this->workspace($method,$path,$body,$u,is_array($ctx['query']??null)?$ctx['query']:[]);
    if($method==='GET')return $this->read($path,$u);
    return $this->tx(fn()=>$this->write($method,$path,$body,$u));
   }catch(Problem $e){return new Response(['error'=>$e->getMessage()],$e->status);}
@@ -180,7 +228,7 @@ final class App {
    $this->sql('DELETE FROM tria_attempts WHERE bucket=? OR started<?',[$bucket,time()-86400]);$this->sql('DELETE FROM tria_sessions WHERE expires<?',[time()]);
    $token=token();$csrf=token();$remember=($b['remember']??false)===true;
    $this->sql('INSERT INTO tria_sessions(token,user_id,expires,csrf) VALUES(?,?,?,?)',[digest($token),$u['id'],time()+($remember?2592000:43200),$csrf]);$this->audit($u['id'],'Giriş yaptı');
-   return new Response(['user'=>publicUser($u),'csrf'=>$csrf],200,['Set-Cookie'=>$this->cookie($token,$remember)]);
+   return new Response(['user'=>$this->me($u),'csrf'=>$csrf],200,['Set-Cookie'=>$this->cookie($token,$remember)]);
   });
  }
  private function accept(array $b):Response{
@@ -190,16 +238,17 @@ final class App {
   $id=id();$this->sql('INSERT INTO tria_users(id,name,email,password,role,active) VALUES(?,?,?,?,?,1)',[$id,$name,$i['email'],hashPassword($pw),$i['role']]);$this->sql('UPDATE tria_invites SET used=1 WHERE token=?',[digest($token)]);$this->audit($id,'Davet ile katıldı');return new Response(['ok'=>true]);
  }
  private function read(string $path,array $u):Response{
-  if($path==='/api/me')return new Response(['user'=>publicUser($u),'csrf'=>$u['csrf']]);
+  if($path==='/api/me')return new Response(['user'=>$this->me($u),'csrf'=>$u['csrf']]);
   if($path==='/api/state'){
-   $admin=$u['role']==='admin';$projects=$admin?$this->all('SELECT * FROM tria_projects ORDER BY created,id'):$this->all('SELECT p.* FROM tria_projects p JOIN tria_members m ON m.project_id=p.id WHERE m.user_id=? ORDER BY p.created,p.id',[$u['id']]);
+   // Tüm projeleri görme: yönetici veya 'projects.all' yetkili rol. Tam kullanıcı listesi: yönetici veya proje yöneticisi.
+   $admin=$this->can($u,'projects.all');$fullUsers=$this->can($u,'projects.manage');$projects=$admin?$this->all('SELECT * FROM tria_projects ORDER BY created,id'):$this->all('SELECT p.* FROM tria_projects p JOIN tria_members m ON m.project_id=p.id WHERE m.user_id=? ORDER BY p.created,p.id',[$u['id']]);
    $ids=array_column($projects,'id');$marks=$ids?implode(',',array_fill(0,count($ids),'?')):'NULL';
    $tasks=$this->all("SELECT * FROM tria_tasks WHERE project_id IN ($marks) ORDER BY due,created,id",$ids);
    $docs=$this->all("SELECT id,name,project_id,owner,size,created FROM tria_documents WHERE project_id IN ($marks) ORDER BY created DESC",$ids);
-   $users=$admin?$this->all('SELECT id,name,email,role,active FROM tria_users ORDER BY name'):$this->all("SELECT DISTINCT u.id,u.name,u.email,u.role,u.active FROM tria_users u LEFT JOIN tria_members m ON u.id=m.user_id WHERE u.id=? OR m.project_id IN ($marks) OR u.id IN (SELECT assignee FROM tria_tasks WHERE project_id IN ($marks)) OR u.id IN (SELECT owner FROM tria_documents WHERE project_id IN ($marks)) ORDER BY u.name",array_merge([$u['id']],$ids,$ids,$ids));
+   $users=$fullUsers?$this->all('SELECT id,name,email,role,active FROM tria_users ORDER BY name'):$this->all("SELECT DISTINCT u.id,u.name,u.email,u.role,u.active FROM tria_users u LEFT JOIN tria_members m ON u.id=m.user_id WHERE u.id=? OR m.project_id IN ($marks) OR u.id IN (SELECT assignee FROM tria_tasks WHERE project_id IN ($marks)) OR u.id IN (SELECT owner FROM tria_documents WHERE project_id IN ($marks)) ORDER BY u.name",array_merge([$u['id']],$ids,$ids,$ids));
    foreach($users as &$person)$person['active']=(int)$person['active'];unset($person);
    foreach($docs as &$doc){$doc['size']=(int)$doc['size'];$doc['created']=(int)$doc['created'];}unset($doc);
-   return new Response(['projects'=>$projects,'tasks'=>$tasks,'documents'=>$docs,'users'=>$users,'members'=>$this->all("SELECT * FROM tria_members WHERE project_id IN ($marks)",$ids),'roles'=>$this->roles()]);
+   return new Response(['projects'=>$projects,'tasks'=>$tasks,'documents'=>$docs,'users'=>$users,'members'=>$this->all("SELECT * FROM tria_members WHERE project_id IN ($marks)",$ids),'roles'=>$this->roles(),'permissions'=>$this->permissions($u),'workspace'=>$this->workspaceStatus($u)]);
   }
   // Rol listesi: etiketlerin gösterimi için tüm oturum sahiplerine açıktır.
   if($path==='/api/roles')return new Response(['roles'=>$this->roles()]);
@@ -213,19 +262,19 @@ final class App {
  private function write(string $method,string $path,array $b,array $u):Response{
   if($path==='/api/logout'&&$method==='POST'){$this->sql('DELETE FROM tria_sessions WHERE token=?',[$u['session_token']]);return new Response(['ok'=>true],200,['Set-Cookie'=>$this->cookie('',false,true)]);}
   if($path==='/api/projects'&&$method==='POST'){
-   $this->admin($u);$id=id();$this->sql('INSERT INTO tria_projects(id,name,location,description,created) VALUES(?,?,?,?,?)',[$id,field($b,'name'),field($b,'location'),field($b,'description',2000,true),time()]);$this->audit($u['id'],'Proje oluşturdu');return new Response(['id'=>$id],201);
+   $this->requirePermission($u,'projects.manage');$id=id();$this->sql('INSERT INTO tria_projects(id,name,location,description,created) VALUES(?,?,?,?,?)',[$id,field($b,'name'),field($b,'location'),field($b,'description',2000,true),time()]);$this->audit($u['id'],'Proje oluşturdu');return new Response(['id'=>$id],201);
   }
   if(preg_match('~^/api/projects/([a-f0-9]{24})/members$~D',$path,$m)&&$method==='POST'){
-   $this->admin($u);$pid=$m[1];$this->project($u,$pid);$ids=$b['users']??null;
+   $this->requirePermission($u,'projects.manage');$pid=$m[1];$this->project($u,$pid);$ids=$b['users']??null;
    if(!is_array($ids)||!array_is_list($ids)||count($ids)>1000)throw new Problem('Kullanıcı listesi geçersiz.');
    foreach($ids as $id)if(!is_string($id)||!$this->one('SELECT 1 FROM tria_users WHERE id=? AND active=1',[$id]))throw new Problem('Kullanıcı bulunamadı.');
-   foreach($this->all('SELECT DISTINCT u.id,u.role FROM tria_tasks t JOIN tria_users u ON u.id=t.assignee WHERE t.project_id=?',[$pid]) as $a)if($a['role']!=='admin'&&!in_array($a['id'],$ids,true))throw new Problem('Üyeyi çıkarmadan önce görevlerini başka bir sorumluya aktarın.');
+   foreach($this->all('SELECT DISTINCT u.id,u.role FROM tria_tasks t JOIN tria_users u ON u.id=t.assignee WHERE t.project_id=?',[$pid]) as $a)if(!$this->can($a,'projects.all')&&!in_array($a['id'],$ids,true))throw new Problem('Üyeyi çıkarmadan önce görevlerini başka bir sorumluya aktarın.');
    $this->sql('DELETE FROM tria_members WHERE project_id=?',[$pid]);foreach(array_unique($ids) as $id)$this->sql('INSERT INTO tria_members(project_id,user_id) VALUES(?,?)',[$pid,$id]);$this->audit($u['id'],'Proje erişimlerini güncelledi');return new Response(['ok'=>true]);
   }
   if($path==='/api/tasks'&&$method==='POST'){
-   // Çalışanlar yalnızca kendilerine görev açabilir; yönetici sorumlu seçer.
+   // 'tasks.assign' yetkisi olmayanlar yalnızca kendilerine görev açabilir.
    $pid=field($b,'project_id',24);$this->project($u,$pid);
-   $assigned=$this->assigneeFor($pid,$u['role']==='admin'?field($b,'assignee',24):$u['id']);
+   $assigned=$this->assigneeFor($pid,$this->can($u,'tasks.assign')?field($b,'assignee',24):$u['id']);
    $f=$this->taskFields($b);
    $id=id();$this->sql('INSERT INTO tria_tasks(id,title,project_id,assignee,due,status,priority,category,description,created) VALUES(?,?,?,?,?,?,?,?,?,?)',[$id,$f['title'],$pid,$assigned,$f['due'],$f['status'],$f['priority'],$f['category'],$f['description'],time()]);$this->audit($u['id'],'Görev oluşturdu');return new Response(['id'=>$id],201);
   }
@@ -248,10 +297,11 @@ final class App {
    return new Response(['ok'=>true]);
   }
 
-  /* DELETE /api/tasks/{id} — yalnızca yöneticiler görev silebilir. */
+  /* DELETE /api/tasks/{id} — yönetici veya 'tasks.delete' yetkili rol silebilir. */
   if(preg_match('~^/api/tasks/([a-f0-9]{24})$~D',$path,$m)&&$method==='DELETE'){
-   $this->admin($u);
-   $t=$this->one('SELECT id FROM tria_tasks WHERE id=?',[$m[1]]);if(!$t)throw new Problem('Görev bulunamadı.',404);
+   $this->requirePermission($u,'tasks.delete');
+   $t=$this->one('SELECT id,project_id FROM tria_tasks WHERE id=?',[$m[1]]);if(!$t)throw new Problem('Görev bulunamadı.',404);
+   $this->project($u,$t['project_id']); // Yetkili rol yalnızca erişebildiği projelerde siler.
    $this->sql('DELETE FROM tria_tasks WHERE id=?',[$t['id']]);$this->audit($u['id'],'Görev sildi');
    return new Response(['ok'=>true]);
   }
@@ -284,9 +334,31 @@ final class App {
    foreach($this->roles() as $r)if(lower($r['label'])===lower($label))throw new Problem('Bu adla bir rol zaten var.');
    $roles=$this->customRoles();if(count($roles)>=50)throw new Problem('En fazla 50 özel rol tanımlanabilir.');
    // Anahtar sunucuda üretilir: 'r'+12 hex = 13 karakter (role sütunu VARCHAR(16)).
-   $key='r'.bin2hex(random_bytes(6));$roles[]=['key'=>$key,'label'=>$label];
+   // Yetkiler verilmezse rol çalışan yetkileriyle başlar.
+   $perms=array_key_exists('permissions',$b)?$this->permissionInput($b['permissions']):self::EMPLOYEE_PERMISSIONS;
+   $key='r'.bin2hex(random_bytes(6));$roles[]=['key'=>$key,'label'=>$label,'permissions'=>$perms];
    $this->saveRoles($roles);$this->audit($u['id'],'Rol tanımladı');
    return new Response(['key'=>$key,'roles'=>$this->roles()],201);
+  }
+
+  /* PUT /api/roles/{key} — özel rolün adını ve yetkilerini günceller (yalnızca yönetici). */
+  if(preg_match('~^/api/roles/([a-z0-9]{1,16})$~D',$path,$m)&&$method==='PUT'){
+   $this->admin($u);
+   if(isset(self::BUILTIN_ROLES[$m[1]]))throw new Problem('Yerleşik rollerin yetkileri değiştirilemez.');
+   $roles=$this->customRoles();$found=false;
+   foreach($roles as &$r){
+    if($r['key']!==$m[1])continue;$found=true;
+    if(array_key_exists('label',$b)){
+     $label=field($b,'label',40);
+     foreach($this->roles() as $other)if($other['key']!==$m[1]&&lower($other['label'])===lower($label))throw new Problem('Bu adla bir rol zaten var.');
+     $r['label']=$label;
+    }
+    if(array_key_exists('permissions',$b))$r['permissions']=$this->permissionInput($b['permissions']);
+   }
+   unset($r);
+   if(!$found)throw new Problem('Rol bulunamadı.',404);
+   $this->saveRoles($roles);$this->permCache=[];$this->audit($u['id'],'Rol yetkilerini güncelledi');
+   return new Response(['roles'=>$this->roles()]);
   }
 
   /* DELETE /api/roles/{key} — kullanılmayan özel rolü siler (yalnızca yönetici). */
@@ -300,7 +372,7 @@ final class App {
    return new Response(['ok'=>true]);
   }
   if(preg_match('~^/api/tasks/([a-f0-9]{24})$~D',$path,$m)&&$method==='PATCH'){
-   $t=$this->one('SELECT * FROM tria_tasks WHERE id=?',[$m[1]]);if(!$t)throw new Problem('Görev bulunamadı.',404);$this->project($u,$t['project_id']);if($u['role']!=='admin'&&$t['assignee']!==$u['id'])throw new Problem('Yalnızca kendi görevinizi güncelleyebilirsiniz.',403);
+   $t=$this->one('SELECT * FROM tria_tasks WHERE id=?',[$m[1]]);if(!$t)throw new Problem('Görev bulunamadı.',404);$this->project($u,$t['project_id']);if(!$this->can($u,'tasks.assign')&&$t['assignee']!==$u['id'])throw new Problem('Yalnızca kendi görevinizi güncelleyebilirsiniz.',403);
    $s=field($b,'status',40);if(!in_array($s,self::STATUSES,true))throw new Problem('Durum geçersiz.');$this->sql('UPDATE tria_tasks SET status=? WHERE id=?',[$s,$t['id']]);$this->audit($u['id'],'Görev durumunu güncelledi');return new Response(['ok'=>true]);
   }
   if($path==='/api/invites'&&$method==='POST'){
@@ -311,13 +383,20 @@ final class App {
    $current=field($b,'current',1024);$pw=field($b,'password',1024);if(!verifyPassword($current,$u['password']))throw new Problem('Mevcut şifreniz hatalı.');validPassword($pw);$this->sql('UPDATE tria_users SET password=? WHERE id=?',[hashPassword($pw),$u['id']]);$this->sql('DELETE FROM tria_sessions WHERE user_id=? AND token<>?',[$u['id'],$u['session_token']]);$this->audit($u['id'],'Şifresini değiştirdi');return new Response(['ok'=>true]);
   }
   if($path==='/api/documents'&&$method==='POST'){
-   $pid=field($b,'project_id',24);$this->project($u,$pid);$name=basename(str_replace('\\','/',field($b,'name')));
-   if(preg_match('/[\x00-\x1f\x7f]/',$name)||!in_array(strtolower(pathinfo($name,PATHINFO_EXTENSION)),['pdf','png','jpg','jpeg','docx','xlsx','txt','csv'],true))throw new Problem('Desteklenmeyen dosya türü veya adı.');
-   if(!is_string($b['content']??null))throw new Problem('Dosya okunamadı.');$bytes=base64_decode($b['content'],true);if($bytes===false||strlen($bytes)===0||strlen($bytes)>10485760)throw new Problem('Boş dosya yüklenemez. Sınır 10 MB.');
-   $id=id();$file=$this->config['data_dir'].'/uploads/'.$id;if(file_put_contents($file,$bytes,LOCK_EX)!==strlen($bytes)){@unlink($file);throw new Problem('Dosya kaydedilemedi.',500);}chmod($file,0600);
-   try{$this->sql('INSERT INTO tria_documents(id,name,project_id,owner,stored,size,created) VALUES(?,?,?,?,?,?,?)',[$id,$name,$pid,$u['id'],$id,strlen($bytes),time()]);$this->audit($u['id'],'Evrak yükledi');}catch(\Throwable $e){@unlink($file);throw $e;}
-   return new Response(['id'=>$id],201);
+   $pid=field($b,'project_id',24);$this->project($u,$pid);
+   if(!is_string($b['content']??null))throw new Problem('Dosya okunamadı.');$bytes=base64_decode($b['content'],true);if($bytes===false)throw new Problem('Dosya okunamadı.');
+   return new Response(['id'=>$this->storeDocument($u,$pid,field($b,'name'),$bytes)],201);
   }
   throw new Problem('İşlem bulunamadı.',404);
+ }
+
+ /** Evrakı doğrulayıp özel klasöre kaydeder (yükleme ve Drive'dan aktarım ortak kullanır). */
+ private function storeDocument(array $u,string $pid,string $name,string $bytes):string{
+  $name=basename(str_replace('\\','/',$name));
+  if($name===''||strlen($name)>200||preg_match('/[\x00-\x1f\x7f]/',$name)||!in_array(strtolower(pathinfo($name,PATHINFO_EXTENSION)),['pdf','png','jpg','jpeg','docx','xlsx','txt','csv'],true))throw new Problem('Desteklenmeyen dosya türü veya adı.');
+  if(strlen($bytes)===0||strlen($bytes)>10485760)throw new Problem('Boş dosya yüklenemez. Sınır 10 MB.');
+  $id=id();$file=$this->config['data_dir'].'/uploads/'.$id;if(file_put_contents($file,$bytes,LOCK_EX)!==strlen($bytes)){@unlink($file);throw new Problem('Dosya kaydedilemedi.',500);}chmod($file,0600);
+  try{$this->sql('INSERT INTO tria_documents(id,name,project_id,owner,stored,size,created) VALUES(?,?,?,?,?,?,?)',[$id,$name,$pid,$u['id'],$id,strlen($bytes),time()]);$this->audit($u['id'],'Evrak yükledi');}catch(\Throwable $e){@unlink($file);throw $e;}
+  return $id;
  }
 }

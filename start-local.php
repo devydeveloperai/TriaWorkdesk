@@ -16,6 +16,11 @@ if(!is_dir($dir.'/uploads'))mkdir($dir.'/uploads',0700);
 $lock=fopen($dir.'/launcher.lock','c');
 if(!$lock||!flock($lock,LOCK_EX|LOCK_NB))exit("Bu klasörde uygulama zaten çalışıyor.\n");
 $c=['origin'=>'http://127.0.0.1:'.$port,'require_https'=>false,'setup_token_hash'=>'','data_dir'=>$dir,'db'=>['driver'=>'sqlite','path'=>$dir.'/workflow.sqlite']];
+// Önceki yerel ayarlardaki şifreleme anahtarı ile Google/Gemini bilgileri korunur
+// (config.local.php her başlatmada yeniden yazılır).
+$prev=is_file($private.'/config.local.php')?(include $private.'/config.local.php'):[];
+$c['secret_key']=is_array($prev)&&is_string($prev['secret_key']??null)&&preg_match('/^[a-f0-9]{64}$/D',$prev['secret_key'])?$prev['secret_key']:bin2hex(random_bytes(32));
+foreach(['google','gemini'] as $k)if(is_array($prev)&&is_array($prev[$k]??null))$c[$k]=$prev[$k];
 require $private.'/app.php';
 $app=new Tria\App($c);$app->migrate();
 if(!$app->one('SELECT value FROM tria_meta WHERE name=?',['installed'])){

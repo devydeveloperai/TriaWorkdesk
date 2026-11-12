@@ -15,6 +15,8 @@ try{
   if($method==='GET'&&!str_starts_with($path,'/api/')){header('Location: '.$c['origin'].(in_array($path,['/','/admin','/login','/invite','/setup'],true)?$path:'/'),true,302);exit;}
   throw new Tria\Problem('HTTPS bağlantısı gerekiyor.');
  }
+ // Google OAuth geri dönüşü: oturum çerezi (SameSite=Strict) gelmez; kullanıcı 'state' ile doğrulanır.
+ if($path==='/google/callback'&&$method==='GET'){(new Tria\App($c))->googleCallback($_GET)->emit();exit;}
  if(str_starts_with($path,'/api/')){
   if(!in_array($method,['GET','POST','PATCH','PUT','DELETE'],true))throw new Tria\Problem('Desteklenmeyen yöntem.',405);
   $body=[];
@@ -28,7 +30,7 @@ try{
    try{$obj=json_decode($raw,false,32,JSON_THROW_ON_ERROR);}catch(JsonException){throw new Tria\Problem('İstek okunamadı.');}
    if(!$obj instanceof stdClass)throw new Tria\Problem('JSON nesnesi bekleniyor.');$body=(array)$obj;
   }
-  $a=new Tria\App($c);$a->handle($method,$path,$body,['origin'=>$_SERVER['HTTP_ORIGIN']??'','csrf'=>$_SERVER['HTTP_X_CSRF_TOKEN']??'','cookie'=>$_COOKIE[$a->cookieName()]??'','ip'=>$_SERVER['REMOTE_ADDR']??''])->emit();exit;
+  $a=new Tria\App($c);$a->handle($method,$path,$body,['origin'=>$_SERVER['HTTP_ORIGIN']??'','csrf'=>$_SERVER['HTTP_X_CSRF_TOKEN']??'','cookie'=>$_COOKIE[$a->cookieName()]??'','ip'=>$_SERVER['REMOTE_ADDR']??'','query'=>$_GET])->emit();exit;
  }
  if($method==='GET'&&in_array($path,['/','/admin','/login','/invite','/setup'],true)){header('Content-Type: text/html; charset=utf-8');readfile(__DIR__.($path==='/setup'?'/setup.html':'/index.html'));exit;}
  throw new Tria\Problem('Sayfa bulunamadı.',404);

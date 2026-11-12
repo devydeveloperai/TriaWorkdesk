@@ -42,18 +42,38 @@ Sunucuda Apache 2.4 veya uyumlu LiteSpeed rewrite desteği ve `.htaccess` izni g
 - Kentsel Dönüşüm, Finans & Muhasebe, Belediye & Ruhsat, Şantiye ve Satış & CRM bölümleri kategori bazlı görev listeleridir; ayrı malik/satış/muhasebe veritabanı modülleri değildir.
 - Görevler düzenlenebilir (`PUT /api/tasks/{id}`): yöneticiler ve projenin üyeleri başlık, tarih, durum, öncelik, alan, proje ve sorumluyu değiştirebilir. Yeni sorumlu projenin üyesi (veya yönetici) olmalıdır. Görev silme (`DELETE /api/tasks/{id}`) yalnızca yöneticilere açıktır.
 - Yöneticiler **Ekip** sayfasında kullanıcının rolünü değiştirebilir, yeni rol tanımlayabilir ve kullanıcıyı pasife alabilir/yeniden etkinleştirebilir (`PUT /api/users/{id}`). Pasife alınan kullanıcının oturumları hemen kapanır. Yönetici kendi rolünü veya durumunu değiştiremez; son aktif yönetici düşürülemez.
-- Özel roller `tria_meta` tablosunda (`name='roles'`) JSON olarak saklanır (`GET/POST /api/roles`, `DELETE /api/roles/{key}`). Özel roller **çalışan düzeyinde** yetkiye sahip etiketlerdir; tüm projelere erişim yalnızca Yönetici rolündedir. Kullanıcıya veya bekleyen davete atanmış rol silinemez.
+- Özel roller `tria_meta` tablosunda (`name='roles'`) JSON olarak saklanır (`GET/POST /api/roles`, `PUT/DELETE /api/roles/{key}`). Kullanıcıya veya bekleyen davete atanmış rol silinemez.
+- **Rol yetkileri:** Her özel role **Ekip → Rolleri yönet** ekranından şu yetkiler seçilir: tüm projeleri görüntüleme (`projects.all`), proje oluşturma ve ekip yönetimi (`projects.manage`), başkalarına görev atama (`tasks.assign`), görev silme (`tasks.delete`), Gmail (`mail.use`), Google Drive ve Takvim (`drive.use`), Gemini asistanı (`gemini.use`). Yönetici tüm yetkilere sahiptir. Çalışan rolü yalnızca Gmail, Drive/Takvim ve Gemini yetkisiyle sabittir. Kullanıcı davet etme, rol ve kullanıcı yönetimi yalnızca Yönetici rolündedir. Önceki sürümde açılmış özel roller çalışan yetkileriyle devam eder.
+- **Gmail (E-posta ekranı):** Gelen kutusu, okunmamış, yıldızlı ve gönderilen klasörleri, Gmail araması, ileti okuma (düz metin), yeni e-posta, yanıtlama ve e-postadan görev oluşturma. Ekler Gmail'de açılır.
+- **Google Drive:** Son değiştirilen dosyaları listeleme ve arama, Drive'da açma, dosyayı projenin evrakına kopyalama. Google Doküman/E-Tablo Word/Excel, Slayt/Çizim PDF/PNG olarak aktarılır. Diğer dosyalarda evrak kuralları (tür, 10 MB) geçerlidir.
+- **Google Takvim:** Görev detayındaki **Google Takvime ekle** düğmesi, görevi son tarihine tüm gün etkinliği olarak kullanıcının takvimine ekler.
+- **Gemini asistanı:** Sağ alttaki **Gemini** düğmesi yan paneli açar. Asistan, kullanıcının yetkili olduğu proje ve görev verileriyle Türkçe yanıt verir. Görev oluşturma isteğinde bir **görev taslağı** önerir. Taslak, kullanıcı formu açıp kaydedene kadar oluşturulmaz.
 - Genel Bakış; bekleyen/geciken görev, 7 günlük teslim ve tamamlanma oranı kutuları, yaklaşan teslim listesi ile durum, proje ve çalışma alanı dağılımlarını gösterir.
 - Belgeler en fazla 10 MB; PDF, PNG, JPG, DOCX, XLSX, TXT, CSV kabul edilir. İndirme her istekte proje yetkisi kontrolünden geçer.
 - Şifre değişikliği diğer oturumları, çıkış mevcut oturumu iptal eder.
 
-Gmail OAuth, otomatik e-posta ve MFA bu sürüme dahil değildir. Üzerinde görev bulunan bir çalışanın proje erişimi kaldırılamaz; önce görevleri düzenleme ekranından başka bir sorumluya aktarın. Eski Python veritabanı otomatik taşınmaz; bu paket yeni kurulum içindir. Eski sürümde gerçek veri varsa ayrı bir veri ve parola geçişi hazırlanmalıdır. Bu projede üretim verisi oluşturulduğuna dair kanıt yoktur.
+Otomatik e-posta bildirimleri ve MFA bu sürüme dahil değildir. Üzerinde görev bulunan bir çalışanın proje erişimi kaldırılamaz; önce görevleri düzenleme ekranından başka bir sorumluya aktarın. Eski Python veritabanı otomatik taşınmaz; bu paket yeni kurulum içindir. Eski sürümde gerçek veri varsa ayrı bir veri ve parola geçişi hazırlanmalıdır. Bu projede üretim verisi oluşturulduğuna dair kanıt yoktur.
 
 Girişteki mimari çizim ve yeniden oluşturulan logo korunmuştur. Özgün fotoğraf ve resmi vektör logo henüz uygulanmadı. Bu PHP dönüşümü görsel tasarımı değiştirmez.
+
+## Google Workspace ve Gemini kurulumu
+
+Entegrasyon yapılandırılana kadar E-posta ve Drive ekranları "yapılandırılmadı" uyarısı gösterir, Gemini düğmesi görünmez. Sunucunun `oauth2.googleapis.com`, `gmail.googleapis.com`, `www.googleapis.com`, `openidconnect.googleapis.com` ve `generativelanguage.googleapis.com` adreslerine HTTPS ile çıkabilmesi gerekir (PHP `curl` veya `allow_url_fopen`). Şifreleme için `sodium` ya da `openssl` eklentisi gerekir.
+
+1. **Şifreleme anahtarı:** `php -r "echo bin2hex(random_bytes(32)),PHP_EOL;"` çıktısını `config.php` içindeki `secret_key` alanına yazın. Bu anahtar değişirse kullanıcılar Google hesaplarını yeniden bağlar.
+2. **Google Cloud projesi:** Google Workspace yönetici hesabıyla [console.cloud.google.com](https://console.cloud.google.com) üzerinde bir proje açın. **Gmail API**, **Google Drive API** ve **Google Calendar API**'yi etkinleştirin.
+3. **OAuth izin ekranı:** Kullanıcı türü olarak **Dahili (Internal)** seçin. Böylece yalnızca `@eksioglutria.com` hesapları bağlanabilir ve Google doğrulama süreci gerekmez.
+4. **OAuth istemcisi:** *Kimlik bilgileri → OAuth istemci kimliği → Web uygulaması* oluşturun. Yetkili yönlendirme URI'si: `https://workflow.eksioglutria.com/google/callback` (yerel deneme: `http://127.0.0.1:8000/google/callback`). İstemci kimliğini ve gizli anahtarı `config.php` → `google.client_id` / `google.client_secret` alanlarına yazın. `hosted_domain` `eksioglutria.com` kalmalı.
+5. **Gemini:** Google AI Studio veya Google Cloud (Vertex/Generative Language API) üzerinden faturalandırması açık bir projede API anahtarı oluşturup `gemini.api_key` alanına yazın. Ücretsiz katmandaki anahtarlarda Google gönderilen verileri ürün geliştirme için kullanabilir. Kurumsal veriler için **faturalı (ücretli) katman** kullanın. `model` alanı varsayılan olarak `gemini-2.5-flash`'tır.
+6. Her kullanıcı **Ayarlar → Google Workspace → Google ile bağlan** ile kendi hesabına bir kez izin verir. İstenen izinler: Gmail okuma ve gönderme, Drive okuma, Takvim etkinliği ekleme.
+
+Bağlanan Google hesabının e-posta adresi uygulamadaki kullanıcı e-postasıyla **aynı** olmalıdır; aksi halde bağlantı reddedilir. Yerel denemede bu ayarlar `workflow-app/config.local.php` dosyasına yazılabilir. Başlatıcı `secret_key`, `google` ve `gemini` alanlarını yeniden başlatmalarda korur.
 
 ## Güvenlik
 
 Parolalar SHA-256 ön özet + bcrypt ile saklanır; bcrypt'in 72 bayt sınırı parola kesilmesine neden olmaz. Oturum ve davet anahtarları kriptografik rastgele üretilir; veritabanında yalnızca SHA-256 özetleri bulunur. HTTPS oturum çerezi `__Host-`, `HttpOnly`, `Secure`, `SameSite=Strict` kullanır; başka alt alan adlarıyla paylaşılmaz. CSRF ve Origin kontrolü yazma işlemlerini korur. Giriş denemeleri IP+hesap başına 15 dakikada 8 denemeyle sınırlıdır. SQL işlemleri PDO prepared statements kullanır. Kurulum boş bir anahtar özetiyle varsayılan olarak kapalıdır; kurulum anahtarı URL'ye yazılmaz.
+
+Google bağlantısı OAuth 2.0 yetkilendirme kodu + PKCE ile yapılır. `state` değeri tek kullanımlık ve 10 dakika geçerlidir. Google erişim ve yenileme anahtarları veritabanında `secret_key` ile şifrelenir (libsodium, yoksa AES-256-GCM). Tarayıcıya hiçbir Google veya Gemini anahtarı gönderilmez. Bağlantı kaldırıldığında anahtar Google tarafında da iptal edilir. Gmail iletileri HTML olarak değil düz metin olarak gösterilir. Gönderimde alıcı ve konu alanlarında satır sonu reddedilir (başlık enjeksiyonu önlemi). Gemini'ye yalnızca kullanıcının yetkili olduğu proje ve görev özetleri gönderilir. Asistan veri değiştiremez, kullanıcı başına 10 dakikada 30 istekle sınırlıdır.
 
 Dosyalar rastgele adlarla özel klasöre kaydedilir; çalıştırılmaz ve attachment olarak indirilir. Virüs taraması dahil değildir. Hata yanıtları bağlantı parolası veya SQL ayrıntıları göstermez. Kullanıcı e-postaları yalnızca yetkili ekip görünümünde sunulur.
 

@@ -47,3 +47,22 @@ PHP 8.2.32 altında 64 servis testi ve 19 yerel HTTP kontrolü geçti. Yönetici
 PHP 8.3 altında servis testleri **109 kontrolle** geçti (64 mevcut + 45 yeni). Yeni kontroller: görev düzenleme yetkisi (yönetici, proje üyesi, üye olmayan), yeni sorumlunun proje üyeliği, görev silmenin yalnızca yöneticiye açık olması, "Finans & Muhasebe" kategorisi, özel rol oluşturma/çoğaltma reddi/silme kısıtları, davette özel rol, kullanıcı rol değiştirme, pasife almanın oturumu ve girişi kapatması, yöneticinin kendi rolünü değiştirememesi.
 
 Yerel sunucuda Playwright/Chromium ile şunlar kontrol edildi: menüde Finans & Muhasebe'nin Kentsel Dönüşüm'ün altında olması, dashboard panelleri, görev düzenleme ve sorumlu değiştirme, yönetici silmesi, çalışanda Sil düğmesinin görünmemesi, rol oluşturma/atama, pasife alma ve yeniden etkinleştirme, 390 px genişlikte yatay taşma olmaması. Konsolda CSP hatası görülmedi (barlar satır içi stil yerine SVG nitelikleriyle çizilir). Canlı Apache/LiteSpeed sunucusunda PUT/DELETE yöntemlerine izin verildiği ayrıca doğrulanmalıdır.
+
+## Rol yetkileri, Google Workspace ve Gemini — 12 Kasım 2026
+
+Servis testleri **176 kontrolle** geçti (109 önceki + 67 yeni). Yeni kontroller:
+- **Rol yetkileri:** tüm projeler, proje yönetimi, görev atama/silme, Gmail, Drive ve Gemini yetkilerinin sunucuda uygulanması; bilinmeyen yetki ve yerleşik rol düzenleme reddi.
+- **Google bağlantısı:** PKCE ve `hd` parametreli bağlantı adresi; farklı e-postalı Google hesabının reddedilmesi; `state` tekrar kullanımının reddi; anahtarların veritabanında şifreli olması; anahtar yenileme; çözülemeyen anahtarda bağlantının kaldırılması; bağlantıyı kaldırırken iptal.
+- **Gmail:** listeleme; HTML gövdenin script içermeyen düz metne çevrilmesi; ek adları; MIME/UTF-8 konu; yanıt dizisi; başlık enjeksiyonu reddi.
+- **Drive ve Takvim:** listeleme ve arama sorgusu kaçışı; E-Tablonun xlsx olarak evraka aktarılması; desteklenmeyen türün ve yetkisiz projenin reddi; takvim etkinliği.
+- **Gemini:** istek yalnızca kullanıcının görebildiği verileri içerir; görev taslağı doğru eşlenir ve kendiliğinden görev oluşturulmaz; geçmiş doğrulaması; yetki kontrolü.
+
+Google ve Gemini yanıtları testlerde taklit edildi (`App::$transport`). Yerel sunucuda Playwright/Chromium ile sahte Google uç noktalarına karşı şu akışlar denendi:
+- Google ile bağlanma ve geri dönüşte oturumun korunması (SameSite=Strict çerez); e-posta eşleşmeme uyarısı.
+- Gmail listeleme, okuma, yanıtlama ve e-postadan görev oluşturma.
+- Drive'dan evraka aktarma ve takvime ekleme.
+- Gemini panelinde yanıt ve görev taslağını formdan onaylama.
+- Rol oluşturma ve yetki seçimi; yetkiye göre menü/düğme görünürlüğü.
+- 390 px mobil görünüm.
+
+**Gerçek Google hesabı, Google Cloud OAuth istemcisi ve Gemini API anahtarıyla canlı doğrulama yapılmadı.** Bu bilgiler sağlandıktan sonra README'deki kurulum adımlarıyla denenmelidir.
