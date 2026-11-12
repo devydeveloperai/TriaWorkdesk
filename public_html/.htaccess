@@ -1,0 +1,19 @@
+# Ekşioğlu Tria — Apache 2.4 / LiteSpeed yönlendirmeleri
+Options -Indexes
+DirectoryIndex index.php
+
+# Gizli dosyalar (.htaccess, .user.ini vb.) dışarıya sunulmaz.
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Arayüz şablonları yalnızca index.php üzerinden sunulur (güvenlik başlıklarıyla).
+  RewriteRule ^(index|setup)\.html$ - [F,L]
+  # Var olan statik dosyalar (app.js, style.css, *.svg ...) doğrudan sunulur.
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+  # Diğer her istek (/, /admin, /api/..., /google/callback) uygulamaya gider.
+  RewriteRule ^ index.php [L]
+</IfModule>

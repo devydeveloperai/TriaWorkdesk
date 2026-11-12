@@ -3,4 +3,5 @@
 workflow-app/config.php
 workflow-app/config.local.php
 workflow-app/local-data/
-workflow-app/storage/
+workflow-app/storage/*
+!workflow-app/storage/.htaccess
