@@ -41,3 +41,9 @@ Bunu üretim üzerinde çalıştırmayın. Python yalnızca geliştiriciye yöne
 ## Yerel başlatıcı — 12 Kasım 2026
 
 PHP 8.2.32 altında 64 servis testi ve 19 yerel HTTP kontrolü geçti. Yönetici/çalışan girişi, yetki sınırları, Origin kontrolü, görev oluşturma/güncelleme, belge yükleme/indirme, özel dosyaların erişime kapalı olması ve çıkış doğrulandı. Başlatıcı yeniden çalıştırıldığında görev değişikliği korundu; kullanıcı ve projeler çoğalmadı. Windows BAT dosyası bu Linux ortamında çalıştırılmadı. Kullanıcının bilgisayarında PHP/SQLite kurulumu henüz doğrulanmadı. Tarayıcıda görsel inceleme bu aşamada yapılmadı.
+
+## Görev/ekip yönetimi ve dashboard — 12 Kasım 2026
+
+PHP 8.3 altında servis testleri **109 kontrolle** geçti (64 mevcut + 45 yeni). Yeni kontroller: görev düzenleme yetkisi (yönetici, proje üyesi, üye olmayan), yeni sorumlunun proje üyeliği, görev silmenin yalnızca yöneticiye açık olması, "Finans & Muhasebe" kategorisi, özel rol oluşturma/çoğaltma reddi/silme kısıtları, davette özel rol, kullanıcı rol değiştirme, pasife almanın oturumu ve girişi kapatması, yöneticinin kendi rolünü değiştirememesi.
+
+Yerel sunucuda Playwright/Chromium ile şunlar kontrol edildi: menüde Finans & Muhasebe'nin Kentsel Dönüşüm'ün altında olması, dashboard panelleri, görev düzenleme ve sorumlu değiştirme, yönetici silmesi, çalışanda Sil düğmesinin görünmemesi, rol oluşturma/atama, pasife alma ve yeniden etkinleştirme, 390 px genişlikte yatay taşma olmaması. Konsolda CSP hatası görülmedi (barlar satır içi stil yerine SVG nitelikleriyle çizilir). Canlı Apache/LiteSpeed sunucusunda PUT/DELETE yöntemlerine izin verildiği ayrıca doğrulanmalıdır.

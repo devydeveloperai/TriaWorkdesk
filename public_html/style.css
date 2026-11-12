@@ -5,3 +5,39 @@
 @media(max-width:950px){.dashboard-grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.topbar .search{display:none}.login{grid-template-columns:40% 60%}.login-art{clip-path:polygon(0 0,70% 0,100% 35%,100% 80%,60% 100%,0 100%)}.login-panel{padding:40px}.login-panel .brand{gap:10px}.brand-caption{font-size:11px}.login-panel h1{font-size:35px}.login:after{inset:20px;pointer-events:none}.architecture{height:80px}.cards{grid-template-columns:1fr}.report-layout{justify-content:center}.donut{width:170px;height:170px}.blueprint{display:none}}
 @media(max-width:650px){.shell{display:block}.sidebar{transform:translateX(-100%);transition:transform .2s;width:245px;box-shadow:5px 0 30px #0004}.sidebar.open{transform:translateX(0)}.mobile-close{display:block;position:absolute;right:6px;top:7px;background:none;color:white}.menu-button{display:block;background:none;padding:5px;color:var(--ink)}.main{padding:0 14px 20px}.topbar{min-height:83px;gap:8px}.heading h1{font-size:23px}.heading small{font-size:10px}.topbar>.primary{padding:9px;font-size:10px}.topbar>.primary .icon{display:none}.topbar>.icon-button{display:none}.topbar>.avatar{width:32px;height:32px;font-size:10px}.stats{gap:10px;margin-bottom:14px}.stat{padding:16px 12px}.stat-value{font-size:30px}.dashboard-grid,.stack{gap:14px}.panel-head{padding:18px 16px 10px}.panel-head h2{font-size:18px}.project-row{gap:10px;padding:17px 14px}.project-row strong{font-size:12px}.project-row small{font-size:10px}.mini-logo{min-width:55px;font-size:19px}.login{display:block;min-height:100vh;padding:24px 23px}.login-art{display:none}.login-panel{padding:25px 12px;max-width:480px}.login-panel .brand{margin-bottom:42px;justify-content:center}.login-panel h1{font-size:35px}.login-panel .brand-caption{font-size:13px}.login:after{inset:12px}.security{font-size:12px}.login-links{font-size:13px}.login-options{font-size:12px}.form-grid{grid-template-columns:1fr}.calendar{min-width:650px}.calendar-scroll{overflow-x:auto}.day{min-height:90px}.toolbar{gap:8px}.toolbar select{max-width:170px}.toolbar .primary{margin-left:0}.user-row{padding:15px;gap:10px}.user-row small{font-size:10px}.user-row strong{font-size:13px}.user-row .badge{font-size:10px}.settings{padding:20px}}
 .task-title{color:var(--ink);text-decoration:none;text-align:left;font-weight:600;font-size:inherit}.task-title:hover{color:var(--gold)}.toolbar .secondary{display:inline-flex;align-items:center;gap:8px}.toolbar h2{margin:0}.toolbar .secondary .icon{width:16px;height:16px}hr{border:0;border-top:1px solid var(--line);margin:25px 0}
+/* ---------- Dashboard (Genel Bakış) ---------- */
+.dash-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:19px;margin-bottom:19px}
+.metric-list{padding:4px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.metric-row{display:flex;flex-direction:column;gap:7px}
+.metric-label{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px}
+.metric-label b{color:var(--muted);font-weight:600;font-size:12px;white-space:nowrap}
+.metric-label .text-button{text-decoration:none;color:var(--ink);font-weight:600;text-align:left}
+.metric-label .text-button:hover{color:var(--gold)}
+svg.meter{width:100%;height:8px;display:block}
+svg.meter .track{fill:#f1f1ef}
+svg.meter .fill.c0{fill:#5f83b7}svg.meter .fill.c1{fill:#b5944e}svg.meter .fill.c2{fill:#8a7fad}svg.meter .fill.c3,svg.meter .fill.done{fill:#799675}
+svg.meter .fill.gold{fill:var(--gold)}
+.deadline-list{padding:0 12px 14px}
+.deadline-item{display:flex;align-items:center;gap:12px;width:100%;background:none;text-align:left;padding:11px 8px;border-bottom:1px solid var(--line);color:var(--ink)}
+.deadline-item:last-child{border-bottom:0}
+.deadline-item:hover{background:var(--paper)}
+.deadline-item>.icon{color:var(--gold);width:20px;height:20px}
+.deadline-item>span:not(.badge){flex:1;min-width:0}
+.deadline-item>.badge{flex:none}
+.deadline-item strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deadline-item small{color:var(--muted);font-size:12px}
+.badge.overdue{background:#fcf0ed;color:#b15e4c}
+/* ---------- Ekip, roller, görev işlemleri ---------- */
+.badge.inactive{background:#efefef;color:#7b8490}
+.user-row.inactive strong,.user-row.inactive small{opacity:.6}
+.secondary.small,.danger.small{padding:7px 11px;font-size:12px}
+.secondary.small .icon,.danger.small .icon,.danger .icon,.modal-actions .primary .icon{width:16px;height:16px}
+.danger{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #e3b9ae;border-radius:5px;color:#b15e4c;padding:11px 16px;font-weight:600}
+.danger:hover{background:#fcf0ed}
+.modal-actions .danger{margin-right:auto}
+.role-list{margin-bottom:20px;border-top:1px solid var(--line)}
+.role-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.role-row small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.hidden{display:none!important}
+@media(max-width:950px){.dash-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.user-row{flex-wrap:wrap}.metric-label{flex-direction:column;gap:3px}}

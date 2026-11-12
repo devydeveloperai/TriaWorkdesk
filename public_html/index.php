@@ -16,13 +16,15 @@ try{
   throw new Tria\Problem('HTTPS bağlantısı gerekiyor.');
  }
  if(str_starts_with($path,'/api/')){
-  if(!in_array($method,['GET','POST','PATCH'],true))throw new Tria\Problem('Desteklenmeyen yöntem.',405);
+  if(!in_array($method,['GET','POST','PATCH','PUT','DELETE'],true))throw new Tria\Problem('Desteklenmeyen yöntem.',405);
   $body=[];
   if($method!=='GET'){
    if(!preg_match('/^[0-9]+$/D',(string)($_SERVER['CONTENT_LENGTH']??'0'))||(int)($_SERVER['CONTENT_LENGTH']??0)>15000000)throw new Tria\Problem('İstek boyutu sınırı aşıldı.',413);
    if(strtolower(trim(explode(';',$_SERVER['CONTENT_TYPE']??'')[0]))!=='application/json')throw new Tria\Problem('JSON bekleniyor.',415);
    $stream=fopen('php://input','rb');$raw=stream_get_contents($stream,15000001);fclose($stream);
    if($raw===false||strlen($raw)>15000000)throw new Tria\Problem('İstek boyutu sınırı aşıldı.',413);
+   // DELETE isteklerinde gövde gönderilmeyebilir; boş gövde boş nesne sayılır.
+   if($method==='DELETE'&&trim($raw)==='')$raw='{}';
    try{$obj=json_decode($raw,false,32,JSON_THROW_ON_ERROR);}catch(JsonException){throw new Tria\Problem('İstek okunamadı.');}
    if(!$obj instanceof stdClass)throw new Tria\Problem('JSON nesnesi bekleniyor.');$body=(array)$obj;
   }

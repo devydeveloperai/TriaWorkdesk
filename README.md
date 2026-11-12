@@ -39,11 +39,15 @@ Sunucuda Apache 2.4 veya uyumlu LiteSpeed rewrite desteği ve `.htaccess` izni g
 - Çalışanlar yalnızca erişim verilen projeleri, görevleri ve belgeleri görür. Kendilerine görev oluşturur ve kendi görevlerinin durumunu günceller.
 - Davetler yalnızca `@eksioglutria.com` adresleri için, tek kullanımlık ve 48 saat geçerlidir. Bağlantı kopyalanıp elle paylaşılır; otomatik e-posta gönderimi yoktur.
 - Proje bazlı filtreler, görev arama, aylık takvim, durum dağılımı, CSV raporu kullanılabilir.
-- Kentsel Dönüşüm, Belediye & Ruhsat, Şantiye ve Satış & CRM bölümleri kategori bazlı görev listeleridir; ayrı malik/satış veritabanı modülleri değildir.
+- Kentsel Dönüşüm, Finans & Muhasebe, Belediye & Ruhsat, Şantiye ve Satış & CRM bölümleri kategori bazlı görev listeleridir; ayrı malik/satış/muhasebe veritabanı modülleri değildir.
+- Görevler düzenlenebilir (`PUT /api/tasks/{id}`): yöneticiler ve projenin üyeleri başlık, tarih, durum, öncelik, alan, proje ve sorumluyu değiştirebilir. Yeni sorumlu projenin üyesi (veya yönetici) olmalıdır. Görev silme (`DELETE /api/tasks/{id}`) yalnızca yöneticilere açıktır.
+- Yöneticiler **Ekip** sayfasında kullanıcının rolünü değiştirebilir, yeni rol tanımlayabilir ve kullanıcıyı pasife alabilir/yeniden etkinleştirebilir (`PUT /api/users/{id}`). Pasife alınan kullanıcının oturumları hemen kapanır. Yönetici kendi rolünü veya durumunu değiştiremez; son aktif yönetici düşürülemez.
+- Özel roller `tria_meta` tablosunda (`name='roles'`) JSON olarak saklanır (`GET/POST /api/roles`, `DELETE /api/roles/{key}`). Özel roller **çalışan düzeyinde** yetkiye sahip etiketlerdir; tüm projelere erişim yalnızca Yönetici rolündedir. Kullanıcıya veya bekleyen davete atanmış rol silinemez.
+- Genel Bakış; bekleyen/geciken görev, 7 günlük teslim ve tamamlanma oranı kutuları, yaklaşan teslim listesi ile durum, proje ve çalışma alanı dağılımlarını gösterir.
 - Belgeler en fazla 10 MB; PDF, PNG, JPG, DOCX, XLSX, TXT, CSV kabul edilir. İndirme her istekte proje yetkisi kontrolünden geçer.
 - Şifre değişikliği diğer oturumları, çıkış mevcut oturumu iptal eder.
 
-Gmail OAuth, otomatik e-posta, MFA, kullanıcı devre dışı bırakma/rol değiştirme arayüzü, görev sorumlusu değiştirme ve silme bu sürüme dahil değildir. Üzerinde görev bulunan bir çalışanın proje erişimi kaldırılamaz. Eski Python veritabanı otomatik taşınmaz; bu paket yeni kurulum içindir. Eski sürümde gerçek veri varsa ayrı bir veri ve parola geçişi hazırlanmalıdır. Bu projede üretim verisi oluşturulduğuna dair kanıt yoktur.
+Gmail OAuth, otomatik e-posta ve MFA bu sürüme dahil değildir. Üzerinde görev bulunan bir çalışanın proje erişimi kaldırılamaz; önce görevleri düzenleme ekranından başka bir sorumluya aktarın. Eski Python veritabanı otomatik taşınmaz; bu paket yeni kurulum içindir. Eski sürümde gerçek veri varsa ayrı bir veri ve parola geçişi hazırlanmalıdır. Bu projede üretim verisi oluşturulduğuna dair kanıt yoktur.
 
 Girişteki mimari çizim ve yeniden oluşturulan logo korunmuştur. Özgün fotoğraf ve resmi vektör logo henüz uygulanmadı. Bu PHP dönüşümü görsel tasarımı değiştirmez.
 
