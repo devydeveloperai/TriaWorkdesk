@@ -13,5 +13,5 @@ return [
  // Yönlendirme adresi (Google Cloud → OAuth istemcisi): https://workflow.eksioglutria.com/google/callback
  'google'=>['client_id'=>'','client_secret'=>'','hosted_domain'=>'eksioglutria.com'],
  // Gemini asistanı: Google AI Studio veya Vertex/Cloud projesinden alınan API anahtarı.
- 'gemini'=>['api_key'=>'','model'=>'gemini-2.5-flash'],
+ 'gemini'=>['api_key'=>'','model'=>'gemini-flash-latest','fallback_model'=>'gemini-flash-lite-latest'],
 ];

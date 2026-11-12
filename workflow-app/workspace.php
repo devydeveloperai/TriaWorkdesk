@@ -17,7 +17,7 @@ namespace Tria;
  * Gerekli config.php alanları (bkz. config.example.php):
  *   'secret_key' => 64 hex karakter,
  *   'google'     => ['client_id'=>..., 'client_secret'=>..., 'hosted_domain'=>'eksioglutria.com'],
- *   'gemini'     => ['api_key'=>..., 'model'=>'gemini-2.5-flash'],
+ *   'gemini'     => ['api_key'=>..., 'model'=>'gemini-flash-latest', 'fallback_model'=>'gemini-flash-lite-latest'],
  */
 trait Workspace {
  /** Testlerde dış HTTP çağrılarını taklit etmek için: fn(method,url,headers,body): [status, body] */
@@ -65,12 +65,14 @@ trait Workspace {
   return $g;
  }
 
- /** Gemini ayarları: API anahtarı ve model adı (varsayılan gemini-2.5-flash). */
+ /** Gemini ayarları: API anahtarı, ana model (varsayılan: her zaman güncel Flash) ve yedek model. */
  private function geminiConfig():?array{
   $g=$this->config['gemini']??null;
   if(!is_array($g)||!is_string($g['api_key']??null)||$g['api_key']==='')return null;
-  $model=is_string($g['model']??null)&&preg_match('/^[a-z0-9.\-]{1,64}$/D',$g['model'])?$g['model']:'gemini-2.5-flash';
-  return ['api_key'=>$g['api_key'],'model'=>$model];
+  $ok=fn($m)=>is_string($m)&&preg_match('/^[a-z0-9.\-]{1,64}$/D',$m);
+  $model=$ok($g['model']??null)?$g['model']:'gemini-flash-latest';
+  $fallback=$ok($g['fallback_model']??null)?$g['fallback_model']:'gemini-flash-lite-latest';
+  return ['api_key'=>$g['api_key'],'model'=>$model,'fallback'=>$fallback];
  }
 
  /** Eski kurulumlarda yeni tablolar yoksa oluşturur (DDL: transaction dışında çağrılır). */
@@ -515,7 +517,11 @@ trait Workspace {
    if($ctx['assignable'])$props['assignee']=['type'=>'string','enum'=>array_values(array_unique($ctx['assignable'])),'description'=>'Sorumlu kişinin adı'];
    $payload['tools']=[['functionDeclarations'=>[['name'=>'create_task','description'=>'Kullanıcının onayına sunulacak yeni bir görev taslağı hazırlar.','parameters'=>['type'=>'object','properties'=>$props,'required'=>['title','project','due']]]]]];
   }
-  [$st,$d]=$this->httpJson('POST',self::GEMINI.$cfg['model'].':generateContent',['x-goog-api-key: '.$cfg['api_key']],$payload);
+  // Ana model yoğunsa (503) veya kaldırılmışsa (404) yedek modelle bir kez daha denenir.
+  foreach(array_unique([$cfg['model'],$cfg['fallback']]) as $model){
+   [$st,$d]=$this->httpJson('POST',self::GEMINI.$model.':generateContent',['x-goog-api-key: '.$cfg['api_key']],$payload);
+   if(!in_array($st,[404,500,503],true))break;
+  }
   if($st===429)throw new Problem('Gemini kullanım sınırına ulaşıldı. Biraz sonra tekrar deneyin.',429);
   if($st!==200){error_log('Tria gemini status '.$st);throw new Problem('Gemini şu anda yanıt veremiyor. Biraz sonra tekrar deneyin.',502);}
   // 4) Yanıtı ayrıştır: metin + isteğe bağlı görev taslağı.
